@@ -14,12 +14,12 @@ export const Route = createFileRoute("/")({
 
 function LoginPage() {
   const navigate = useNavigate();
-  const { session, setSession } = useSession();
+  const { session, isDirectora, setSession } = useSession();
   const staff = useQuery({ queryKey: ["staff"], queryFn: () => listStaff() });
 
   useEffect(() => {
-    if (session) navigate({ to: "/dashboard" });
-  }, [session, navigate]);
+    if (session) navigate({ to: isDirectora ? "/directora" : "/dashboard" });
+  }, [session, isDirectora, navigate]);
 
   const coordinadoras = (staff.data ?? []).filter(
     (s) => s.activo && s.nombreCompleto.trim().toLowerCase() !== DIRECTORA_NAME.toLowerCase(),
