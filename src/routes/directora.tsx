@@ -1,0 +1,525 @@
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useEffect, useMemo, useState } from "react";
+import { toast } from "sonner";
+import {
+  Bar,
+  BarChart,
+  CartesianGrid,
+  Cell,
+  Legend,
+  Pie,
+  PieChart,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis,
+} from "recharts";
+import {
+  listApplicants,
+  listMentoras,
+  listStaff,
+  updateApplicantByDni,
+} from "@/lib/sheets.functions";
+import { summarizeApplicant } from "@/lib/ai.functions";
+import { regionForUniversity, SCORECARD_COLS } from "@/lib/constants";
+import { useSession } from "@/lib/session";
+import { Card } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Switch } from "@/components/ui/switch";
+import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { ProfileLeft } from "@/components/ProfileLeft";
+import { EvaluationPanel } from "@/components/EvaluationPanel";
+import { statusOf } from "./dashboard";
+import { Sparkles } from "lucide-react";
+
+export const Route = createFileRoute("/directora")({
+  component: DirectoraView,
+});
+
+const TEAL = "#1C999C";
+const TEAL_TINTS = ["#1C999C", "#5FBABC", "#9CD7D8", "#C8E9EA", "#3AA9AC", "#7CC7C9"];
+
+function DirectoraView() {
+  const { session, isDirectora } = useSession();
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    if (!session) navigate({ to: "/" });
+    else if (!isDirectora) navigate({ to: "/dashboard" });
+  }, [session, isDirectora, navigate]);
+
+  const applicants = useQuery({ queryKey: ["applicants"], queryFn: () => listApplicants() });
+  const mentoras = useQuery({ queryKey: ["mentoras"], queryFn: () => listMentoras() });
+  const staff = useQuery({ queryKey: ["staff"], queryFn: () => listStaff() });
+
+  const rows = applicants.data ?? [];
+
+  // Chart 1 — registros por semana
+  const weekly = useMemo(() => {
+    const map = new Map<string, number>();
+    for (const r of rows) {
+      const raw = r.data["Marca temporal"];
+      const d = parseDate(raw);
+      if (!d) continue;
+      const wk = weekKey(d);
+      map.set(wk, (map.get(wk) ?? 0) + 1);
+    }
+    return Array.from(map.entries())
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([wk, n]) => ({ semana: wk, postulantes: n }));
+  }, [rows]);
+
+  // Chart 2 — región
+  const regionData = useMemo(() => {
+    const map = { Lima: 0, Provincias: 0, "No especificado": 0 } as Record<string, number>;
+    for (const r of rows) map[regionForUniversity(r.data["¿Dónde estudiaste?"])] += 1;
+    return Object.entries(map).map(([region, n]) => ({ region, postulantes: n }));
+  }, [rows]);
+
+  // Chart 3 — carrera
+  const carreraData = useMemo(() => {
+    const map = new Map<string, number>();
+    for (const r of rows) {
+      const k = (r.data["¿Qué estudiaste?"] || "No especificado").trim();
+      map.set(k, (map.get(k) ?? 0) + 1);
+    }
+    return Array.from(map.entries())
+      .sort(([, a], [, b]) => b - a)
+      .slice(0, 12)
+      .map(([carrera, n]) => ({ carrera, postulantes: n }));
+  }, [rows]);
+
+  // Chart 4 — sector
+  const sectorData = useMemo(() => {
+    const map = new Map<string, number>();
+    for (const r of rows) {
+      const k = (r.data["Sector de Finanzas en el que trabajas:"] || "No especificado").trim();
+      map.set(k, (map.get(k) ?? 0) + 1);
+    }
+    return Array.from(map.entries()).map(([sector, n]) => ({ sector, n }));
+  }, [rows]);
+
+  if (!session || !isDirectora) return null;
+
+  return (
+    <main className="mx-auto max-w-[1600px] px-6 py-8">
+      <div className="mb-6 flex flex-wrap items-end justify-between gap-3">
+        <div>
+          <p className="wif-section-title">Vista Directora</p>
+          <h1 className="mt-1 text-3xl font-light">Dashboard ejecutivo</h1>
+          <p className="mt-1 text-sm text-muted-foreground">
+            {rows.length} postulantes totales en el sistema
+          </p>
+        </div>
+        <Link to="/dashboard" className="text-sm text-muted-foreground hover:text-primary">
+          ← Volver al panel
+        </Link>
+      </div>
+
+      <div className="mb-8 grid grid-cols-1 gap-4 lg:grid-cols-2">
+        <ChartCard title="Avance de registro (por semana)">
+          <ResponsiveContainer width="100%" height={240}>
+            <BarChart data={weekly}>
+              <CartesianGrid strokeDasharray="3 3" stroke="#eee" />
+              <XAxis dataKey="semana" tick={{ fontSize: 11 }} />
+              <YAxis tick={{ fontSize: 11 }} allowDecimals={false} />
+              <Tooltip />
+              <Bar dataKey="postulantes" fill={TEAL} radius={[4, 4, 0, 0]} />
+            </BarChart>
+          </ResponsiveContainer>
+        </ChartCard>
+
+        <ChartCard title="Postulantes por región universitaria">
+          <ResponsiveContainer width="100%" height={240}>
+            <BarChart data={regionData}>
+              <CartesianGrid strokeDasharray="3 3" stroke="#eee" />
+              <XAxis dataKey="region" tick={{ fontSize: 11 }} />
+              <YAxis tick={{ fontSize: 11 }} allowDecimals={false} />
+              <Tooltip />
+              <Bar dataKey="postulantes" fill={TEAL} radius={[4, 4, 0, 0]} />
+            </BarChart>
+          </ResponsiveContainer>
+        </ChartCard>
+
+        <ChartCard title="Postulantes por carrera (top 12)">
+          <ResponsiveContainer width="100%" height={280}>
+            <BarChart data={carreraData} layout="vertical" margin={{ left: 60 }}>
+              <CartesianGrid strokeDasharray="3 3" stroke="#eee" />
+              <XAxis type="number" tick={{ fontSize: 11 }} allowDecimals={false} />
+              <YAxis type="category" dataKey="carrera" tick={{ fontSize: 11 }} width={140} />
+              <Tooltip />
+              <Bar dataKey="postulantes" fill={TEAL} radius={[0, 4, 4, 0]} />
+            </BarChart>
+          </ResponsiveContainer>
+        </ChartCard>
+
+        <ChartCard title="Postulantes por sector de finanzas">
+          <ResponsiveContainer width="100%" height={280}>
+            <PieChart>
+              <Pie data={sectorData} dataKey="n" nameKey="sector" cx="50%" cy="50%" innerRadius={50} outerRadius={100}>
+                {sectorData.map((_, i) => (
+                  <Cell key={i} fill={TEAL_TINTS[i % TEAL_TINTS.length]} />
+                ))}
+              </Pie>
+              <Tooltip />
+              <Legend wrapperStyle={{ fontSize: 11 }} />
+            </PieChart>
+          </ResponsiveContainer>
+        </ChartCard>
+      </div>
+
+      <AssignmentsTable
+        rows={rows}
+        staffList={(staff.data ?? []).filter((s) => s.activo).map((s) => s.nombreCorto)}
+        mentoras={mentoras.data ?? []}
+      />
+    </main>
+  );
+}
+
+function ChartCard({ title, children }: { title: string; children: React.ReactNode }) {
+  return (
+    <Card className="p-5">
+      <p className="wif-section-title mb-3">{title}</p>
+      {children}
+    </Card>
+  );
+}
+
+// ---------- Inline editable table ----------
+
+function AssignmentsTable({
+  rows,
+  staffList,
+  mentoras,
+}: {
+  rows: Array<{ rowNumber: number; data: Record<string, string> }>;
+  staffList: string[];
+  mentoras: Array<{ nombre: string }>;
+}) {
+  const qc = useQueryClient();
+  const [openDni, setOpenDni] = useState<string | null>(null);
+  const [q, setQ] = useState("");
+
+  const filtered = useMemo(() => {
+    if (!q.trim()) return rows;
+    const s = q.toLowerCase();
+    return rows.filter((r) => {
+      const nombre = `${r.data["Nombres"]} ${r.data["Apellidos"]}`.toLowerCase();
+      return nombre.includes(s) || r.data["DNI"].includes(s);
+    });
+  }, [rows, q]);
+
+  const mutation = useMutation({
+    mutationFn: ({ dni, updates }: { dni: string; updates: Record<string, string> }) =>
+      updateApplicantByDni({ data: { dni, updates } }),
+    onSuccess: () => {
+      toast.success("Guardado");
+      qc.invalidateQueries({ queryKey: ["applicants"] });
+    },
+    onError: (e: Error) => toast.error(`Error: ${e.message}`),
+  });
+
+  const update = (dni: string, field: string, value: string) =>
+    mutation.mutate({ dni, updates: { [field]: value } });
+
+  return (
+    <Card className="overflow-hidden p-0">
+      <div className="flex items-center justify-between border-b border-border p-4">
+        <div>
+          <p className="wif-section-title">Tabla de asignaciones</p>
+          <p className="text-xs text-muted-foreground">Edición en línea — se guarda en Sheets al instante</p>
+        </div>
+        <Input
+          placeholder="Buscar…"
+          value={q}
+          onChange={(e) => setQ(e.target.value)}
+          className="max-w-xs"
+        />
+      </div>
+      <div className="max-h-[70vh] overflow-auto">
+        <table className="w-full min-w-[1200px] text-sm">
+          <thead className="sticky top-0 bg-[var(--teal-softer)] text-left text-xs uppercase tracking-wide text-muted-foreground">
+            <tr>
+              <th className="px-3 py-3">Nombre Mentee</th>
+              <th className="px-3 py-3">Coordinadora</th>
+              <th className="px-3 py-3">Universidad</th>
+              <th className="px-3 py-3">Puesto</th>
+              <th className="px-3 py-3">Empresa</th>
+              <th className="px-3 py-3">Años exp.</th>
+              <th className="px-3 py-3">Coment. Coord.</th>
+              <th className="px-3 py-3">Pasa F2</th>
+              <th className="px-3 py-3">Destacada</th>
+              <th className="px-3 py-3">Coment. Directora</th>
+              <th className="px-3 py-3">Resultado F1</th>
+            </tr>
+          </thead>
+          <tbody>
+            {filtered.map((r) => {
+              const d = r.data;
+              const nombre =
+                d["Nombre Mentee"] || `${d["Nombres"]} ${d["Apellidos"]}`.trim();
+              const destacada = ["true", "1", "sí", "si"].includes(
+                (d["¿Candidata destacada?"] || "").toLowerCase(),
+              );
+              return (
+                <tr key={d["DNI"]} className="border-t border-border hover:bg-[var(--teal-softer)]">
+                  <td className="px-3 py-2">
+                    <button
+                      onClick={() => setOpenDni(d["DNI"])}
+                      className="text-left text-sm hover:text-primary hover:underline"
+                    >
+                      {nombre}
+                    </button>
+                  </td>
+                  <td className="px-3 py-2">
+                    <Select
+                      value={d["Encargada de la revisión:"] || ""}
+                      onValueChange={(v) => update(d["DNI"], "Encargada de la revisión:", v)}
+                    >
+                      <SelectTrigger className="h-8 w-[140px] text-xs"><SelectValue placeholder="—" /></SelectTrigger>
+                      <SelectContent>
+                        {staffList.map((s) => (
+                          <SelectItem key={s} value={s}>{s}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </td>
+                  <td className="px-3 py-2 text-xs">{d["¿Dónde estudiaste?"] || "—"}</td>
+                  <td className="px-3 py-2 text-xs">{d["Puesto de Trabajo:"] || "—"}</td>
+                  <td className="px-3 py-2 text-xs">{d["Lugar de Trabajo Actual:"] || "—"}</td>
+                  <td className="px-3 py-2 text-xs">{d["Años de experiencia profesional en la industria financiera:"] || "—"}</td>
+                  <td className="px-3 py-2 text-xs">
+                    <div className="max-w-[180px] truncate" title={d["Comentarios (Opcional)"]}>
+                      {d["Comentarios (Opcional)"] || "—"}
+                    </div>
+                  </td>
+                  <td className="px-3 py-2 text-xs">
+                    <span className="rounded-full bg-muted px-2 py-0.5">
+                      {d["¿Pasa a la fase 2 (Entrevistas)?"] || "—"}
+                    </span>
+                  </td>
+                  <td className="px-3 py-2">
+                    <Switch
+                      checked={destacada}
+                      onCheckedChange={(v) => update(d["DNI"], "¿Candidata destacada?", v ? "TRUE" : "FALSE")}
+                    />
+                  </td>
+                  <td className="px-3 py-2">
+                    <InlineText
+                      value={d["Check Nicole"] || ""}
+                      onCommit={(v) => update(d["DNI"], "Check Nicole", v)}
+                    />
+                  </td>
+                  <td className="px-3 py-2">
+                    <Select
+                      value={d["Resultados Fase 1"] || ""}
+                      onValueChange={(v) => update(d["DNI"], "Resultados Fase 1", v)}
+                    >
+                      <SelectTrigger className="h-8 w-[160px] text-xs"><SelectValue placeholder="—" /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="Preseleccionada — pasa a Fase 2">Preseleccionada — pasa a Fase 2</SelectItem>
+                        <SelectItem value="No pasa">No pasa</SelectItem>
+                        <SelectItem value="Pendiente de revisión">Pendiente de revisión</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+
+      {openDni && (
+        <ProfileModal
+          dni={openDni}
+          onClose={() => setOpenDni(null)}
+          staffList={staffList}
+          mentoras={mentoras}
+        />
+      )}
+    </Card>
+  );
+}
+
+function InlineText({ value, onCommit }: { value: string; onCommit: (v: string) => void }) {
+  const [v, setV] = useState(value);
+  useEffect(() => setV(value), [value]);
+  return (
+    <input
+      value={v}
+      onChange={(e) => setV(e.target.value)}
+      onBlur={() => v !== value && onCommit(v)}
+      className="h-8 w-[180px] rounded border border-border bg-background px-2 text-xs focus:border-primary focus:outline-none"
+    />
+  );
+}
+
+// ---------- Modal reusing profile view + AI summary ----------
+
+function ProfileModal({
+  dni,
+  onClose,
+  staffList,
+  mentoras,
+}: {
+  dni: string;
+  onClose: () => void;
+  staffList: string[];
+  mentoras: Array<{ nombre: string }>;
+}) {
+  const qc = useQueryClient();
+  const applicant = useQuery({
+    queryKey: ["applicant", dni],
+    queryFn: () =>
+      import("@/lib/sheets.functions").then((m) => m.getApplicantByDni({ data: { dni } })),
+  });
+  const [draft, setDraft] = useState<Record<string, string | number>>({});
+  const [summary, setSummary] = useState<string>("");
+
+  const merged = useMemo(() => {
+    if (!applicant.data) return {} as Record<string, string>;
+    return {
+      ...applicant.data.data,
+      ...Object.fromEntries(Object.entries(draft).map(([k, v]) => [k, String(v)])),
+    };
+  }, [applicant.data, draft]);
+
+  const totalScorecard = useMemo(
+    () => SCORECARD_COLS.reduce((s, c) => s + (Number(merged[c] || 0) || 0), 0),
+    [merged],
+  );
+
+  const save = useMutation({
+    mutationFn: (u: Record<string, string | number>) => updateApplicantByDni({ data: { dni, updates: u } }),
+    onSuccess: () => {
+      toast.success("Cambios guardados");
+      setDraft({});
+      qc.invalidateQueries({ queryKey: ["applicant", dni] });
+      qc.invalidateQueries({ queryKey: ["applicants"] });
+    },
+    onError: (e: Error) => toast.error(`Error: ${e.message}`),
+  });
+
+  const summarize = useMutation({
+    mutationFn: async () => {
+      const d = applicant.data?.data;
+      if (!d) throw new Error("Sin datos");
+      const profile = [
+        `Nombre: ${d["Nombres"]} ${d["Apellidos"]}`,
+        `Universidad: ${d["¿Dónde estudiaste?"]}  ·  Carrera: ${d["¿Qué estudiaste?"]}`,
+        `Sector: ${d["Sector de Finanzas en el que trabajas:"]}  ·  Puesto: ${d["Puesto de Trabajo:"]} en ${d["Lugar de Trabajo Actual:"]}`,
+        `Experiencia: ${d["Años de experiencia profesional en la industria financiera:"]} años`,
+        `Descripción: ${d["¿Cómo te describirías en 4 lineas?:"]}`,
+        `Metas: ${d["¿Cuáles son tus metas profesionales?:"]}`,
+        `Interés en el programa: ${d["¿Qué te interesa trabajar durante el programa de mentorias? (ej. Metas de carrera, networking, analysis de habilidades, revisión de CV):"]}`,
+        `Impacto esperado de la mentoría: ${d["¿Cómo crees que tener una Mentora y formar parte de la red de Women in Finance ayudaría a impulsar tu carrera?:"]}`,
+        `Modelo a seguir: ${d["¿Quién es tu modelo a seguir en el mundo profesional? ¿Por qué? :"]}`,
+        `Valores: ${d["¿Cuáles consideras que son los 2 valores que te caracterizan? ¿Por qué?"]}`,
+        `LinkedIn: ${d["LinkedIn"]}`,
+      ].join("\n");
+      const r = await summarizeApplicant({ data: { profile } });
+      return r.summary;
+    },
+    onSuccess: (text) => setSummary(text),
+    onError: (e: Error) => toast.error(`IA: ${e.message}`),
+  });
+
+  return (
+    <Dialog open onOpenChange={(o) => !o && onClose()}>
+      <DialogContent className="max-h-[92vh] max-w-[1400px] overflow-hidden p-0">
+        <DialogHeader className="border-b border-border p-5">
+          <DialogTitle className="flex items-center gap-2">
+            {applicant.data
+              ? `${applicant.data.data["Nombres"]} ${applicant.data.data["Apellidos"]}`
+              : "Cargando…"}
+            <span className="text-xs font-normal text-muted-foreground">· DNI {dni}</span>
+          </DialogTitle>
+        </DialogHeader>
+
+        <div className="max-h-[80vh] overflow-y-auto">
+          {applicant.data && (
+            <div className="grid grid-cols-1 gap-5 p-5 lg:grid-cols-[1.15fr_1fr]">
+              <div className="space-y-4">
+                <Card className="border-primary/30 bg-[var(--teal-softer)] p-5">
+                  <div className="mb-3 flex items-center justify-between">
+                    <p className="wif-section-title flex items-center gap-2">
+                      <Sparkles className="h-3.5 w-3.5" /> Resumen Ejecutivo de Perfil por IA
+                    </p>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => summarize.mutate()}
+                      disabled={summarize.isPending}
+                    >
+                      {summarize.isPending ? "Generando…" : summary ? "Regenerar" : "Generar resumen"}
+                    </Button>
+                  </div>
+                  {summary ? (
+                    <pre className="whitespace-pre-wrap font-sans text-sm">{summary}</pre>
+                  ) : (
+                    <p className="text-xs text-muted-foreground">
+                      Genera un resumen del CV, respuestas y perfil profesional con IA (bajo demanda).
+                    </p>
+                  )}
+                </Card>
+                <ProfileLeft data={applicant.data.data} />
+              </div>
+              <div className="lg:sticky lg:top-0 lg:self-start">
+                <EvaluationPanel
+                  data={merged}
+                  draft={draft}
+                  setDraft={setDraft}
+                  isDirectora
+                  mentoras={mentoras}
+                  staffList={staffList}
+                  totalScorecard={totalScorecard}
+                  onSave={() => save.mutate(draft)}
+                  saving={save.isPending}
+                  dirty={Object.keys(draft).length > 0}
+                />
+              </div>
+            </div>
+          )}
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+// ---------- Utils ----------
+
+function parseDate(s: string | undefined): Date | null {
+  if (!s) return null;
+  // "8/07/2026 19:36:17" (DD/MM/YYYY)
+  const m = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})/);
+  if (m) return new Date(Number(m[3]), Number(m[2]) - 1, Number(m[1]));
+  const d = new Date(s);
+  return isNaN(d.getTime()) ? null : d;
+}
+
+function weekKey(d: Date): string {
+  // ISO week Monday
+  const dt = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
+  const day = dt.getUTCDay() || 7;
+  dt.setUTCDate(dt.getUTCDate() - day + 1);
+  return `${dt.getUTCFullYear()}-${String(dt.getUTCMonth() + 1).padStart(2, "0")}-${String(dt.getUTCDate()).padStart(2, "0")}`;
+}
+
+// unused import kept intentionally for statusOf reuse elsewhere
+void statusOf;
