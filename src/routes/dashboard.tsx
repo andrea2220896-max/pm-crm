@@ -219,9 +219,13 @@ export function statusOf(d: Record<string, string>) {
     return { label: "Seleccionada", bg: "var(--teal-soft)", fg: "var(--primary)" };
   if (d["Resultados Fase 2"] === "No seleccionada")
     return { label: "No seleccionada", bg: "oklch(0.96 0.01 30)", fg: "oklch(0.5 0.15 27)" };
-  if (d["¿Pasa a la fase 2 (Entrevistas)?"] === "Preseleccionada")
+  const r = (d["Resultados Fase 1"] ?? "").trim().toLowerCase();
+  const p = (d["¿Pasa a la fase 2 (Entrevistas)?"] ?? "").trim().toLowerCase();
+  if (r === "preseleccionada" || p === "sí" || p === "si" || p === "preseleccionada")
     return { label: "Fase 2 — Entrevista", bg: "var(--teal-softer)", fg: "var(--primary)" };
-  if (d["¿Pasa a la fase 2 (Entrevistas)?"] === "No seleccionada")
+  if (r === "en evaluación" || p === "tal vez")
+    return { label: "En evaluación", bg: "oklch(0.96 0.03 90)", fg: "oklch(0.45 0.1 80)" };
+  if (r === "no pasa" || p === "no" || p === "no seleccionada")
     return { label: "No seleccionada (F1)", bg: "oklch(0.96 0.01 30)", fg: "oklch(0.5 0.15 27)" };
   return { label: "Fase 1 — Filtro CV", bg: "oklch(0.97 0.005 200)", fg: "oklch(0.4 0.02 200)" };
 }
