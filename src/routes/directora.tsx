@@ -54,11 +54,11 @@ const TEAL = "#1C999C";
 const TEAL_TINTS = ["#1C999C", "#5FBABC", "#9CD7D8", "#C8E9EA", "#3AA9AC", "#7CC7C9"];
 
 function DirectoraView() {
-  const { session, isDirectora } = useSession();
+  const { session, isDirectora, hydrated } = useSession();
   const navigate = useNavigate();
 
   useEffect(() => {
-    if (!session) navigate({ to: "/" });
+    if (hydrated && !session) navigate({ to: "/" });
     else if (!isDirectora) navigate({ to: "/dashboard" });
   }, [session, isDirectora, navigate]);
 

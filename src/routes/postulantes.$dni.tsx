@@ -20,12 +20,12 @@ export const Route = createFileRoute("/postulantes/$dni")({
 
 function ProfilePage() {
   const { dni } = Route.useParams();
-  const { session, isDirectora } = useSession();
+  const { session, isDirectora, hydrated } = useSession();
   const navigate = useNavigate();
   const qc = useQueryClient();
 
   useEffect(() => {
-    if (!session) navigate({ to: "/" });
+    if (hydrated && !session) navigate({ to: "/" });
   }, [session, navigate]);
 
   const applicant = useQuery({

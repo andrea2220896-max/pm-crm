@@ -14,13 +14,13 @@ export const Route = createFileRoute("/dashboard")({
 type Filter = "todas" | "fase1" | "fase2" | "hechas";
 
 function Dashboard() {
-  const { session, isDirectora } = useSession();
+  const { session, isDirectora, hydrated } = useSession();
   const navigate = useNavigate();
   const [filter, setFilter] = useState<Filter>("todas");
   const [q, setQ] = useState("");
 
   useEffect(() => {
-    if (!session) navigate({ to: "/" });
+    if (hydrated && !session) navigate({ to: "/" });
   }, [session, navigate]);
 
   const applicants = useQuery({
