@@ -9,10 +9,16 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as DirectoraRouteImport } from './routes/directora'
 import { Route as DashboardRouteImport } from './routes/dashboard'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as PostulantesDniRouteImport } from './routes/postulantes.$dni'
 
+const DirectoraRoute = DirectoraRouteImport.update({
+  id: '/directora',
+  path: '/directora',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const DashboardRoute = DashboardRouteImport.update({
   id: '/dashboard',
   path: '/dashboard',
@@ -32,35 +38,46 @@ const PostulantesDniRoute = PostulantesDniRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/dashboard': typeof DashboardRoute
+  '/directora': typeof DirectoraRoute
   '/postulantes/$dni': typeof PostulantesDniRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/dashboard': typeof DashboardRoute
+  '/directora': typeof DirectoraRoute
   '/postulantes/$dni': typeof PostulantesDniRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/dashboard': typeof DashboardRoute
+  '/directora': typeof DirectoraRoute
   '/postulantes/$dni': typeof PostulantesDniRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/dashboard' | '/postulantes/$dni'
+  fullPaths: '/' | '/dashboard' | '/directora' | '/postulantes/$dni'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/dashboard' | '/postulantes/$dni'
-  id: '__root__' | '/' | '/dashboard' | '/postulantes/$dni'
+  to: '/' | '/dashboard' | '/directora' | '/postulantes/$dni'
+  id: '__root__' | '/' | '/dashboard' | '/directora' | '/postulantes/$dni'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   DashboardRoute: typeof DashboardRoute
+  DirectoraRoute: typeof DirectoraRoute
   PostulantesDniRoute: typeof PostulantesDniRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/directora': {
+      id: '/directora'
+      path: '/directora'
+      fullPath: '/directora'
+      preLoaderRoute: typeof DirectoraRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/dashboard': {
       id: '/dashboard'
       path: '/dashboard'
@@ -88,6 +105,7 @@ declare module '@tanstack/react-router' {
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   DashboardRoute: DashboardRoute,
+  DirectoraRoute: DirectoraRoute,
   PostulantesDniRoute: PostulantesDniRoute,
 }
 export const routeTree = rootRouteImport
