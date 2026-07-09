@@ -3,7 +3,10 @@ import { useQuery } from "@tanstack/react-query";
 import { useEffect } from "react";
 import { listStaff } from "@/lib/sheets.functions";
 import { useSession } from "@/lib/session";
+
+import { DIRECTORA_NAME } from "@/lib/constants";
 import { Card } from "@/components/ui/card";
+import { BarChart3 } from "lucide-react";
 
 export const Route = createFileRoute("/")({
   component: LoginPage,
@@ -11,12 +14,16 @@ export const Route = createFileRoute("/")({
 
 function LoginPage() {
   const navigate = useNavigate();
-  const { session, setSession } = useSession();
+  const { session, isDirectora, setSession } = useSession();
   const staff = useQuery({ queryKey: ["staff"], queryFn: () => listStaff() });
 
   useEffect(() => {
-    if (session) navigate({ to: "/dashboard" });
-  }, [session, navigate]);
+    if (session) navigate({ to: isDirectora ? "/directora" : "/dashboard" });
+  }, [session, isDirectora, navigate]);
+
+  const coordinadoras = (staff.data ?? []).filter(
+    (s) => s.activo && s.nombreCompleto.trim().toLowerCase() !== DIRECTORA_NAME.toLowerCase(),
+  );
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-background via-background to-[var(--teal-softer)] px-4 py-16">
@@ -41,26 +48,44 @@ function LoginPage() {
           )}
           {staff.data && (
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 md:grid-cols-3">
-              {staff.data.map((s) => (
-                  <button
-                    key={s.nombreCompleto}
-                    onClick={() => {
-                      setSession({
-                        nombreCompleto: s.nombreCompleto,
-                        nombreCorto: s.nombreCorto,
-                        correo: s.correo,
-                      });
-                      navigate({ to: "/dashboard" });
-                    }}
-                    className="group flex flex-col items-start rounded-lg border border-border bg-card p-4 text-left transition-all hover:border-primary hover:bg-[var(--teal-softer)]"
-                  >
-                    <div className="mb-2 grid h-10 w-10 place-items-center rounded-full bg-[var(--teal-soft)] text-primary">
-                      {s.nombreCorto.slice(0, 2).toUpperCase()}
-                    </div>
-                    <div className="text-sm">{s.nombreCompleto}</div>
-                    <div className="text-xs text-muted-foreground">{s.correo || "—"}</div>
-                  </button>
-                ))}
+              {coordinadoras.map((s) => (
+                <button
+                  key={s.nombreCompleto}
+                  onClick={() => {
+                    setSession({
+                      nombreCompleto: s.nombreCompleto,
+                      nombreCorto: s.nombreCorto,
+                      correo: s.correo,
+                    });
+                    navigate({ to: "/dashboard" });
+                  }}
+                  className="group flex flex-col items-start rounded-lg border border-border bg-card p-4 text-left transition-all hover:border-primary hover:bg-[var(--teal-softer)]"
+                >
+                  <div className="mb-2 grid h-10 w-10 place-items-center rounded-full bg-[var(--teal-soft)] text-primary">
+                    {s.nombreCorto.slice(0, 2).toUpperCase()}
+                  </div>
+                  <div className="text-sm">{s.nombreCorto || s.nombreCompleto}</div>
+                  <div className="text-xs text-muted-foreground">coordinadora</div>
+                </button>
+              ))}
+
+              <button
+                onClick={() => {
+                  setSession({
+                    nombreCompleto: DIRECTORA_NAME,
+                    nombreCorto: "Nicole",
+                    correo: "",
+                  });
+                  navigate({ to: "/directora" });
+                }}
+                className="group flex flex-col items-start rounded-lg border-2 border-primary bg-[var(--teal-softer)] p-4 text-left transition-all hover:bg-[var(--teal-soft)]"
+              >
+                <div className="mb-2 grid h-10 w-10 place-items-center rounded-full bg-primary text-primary-foreground">
+                  <BarChart3 className="h-5 w-5" />
+                </div>
+                <div className="text-sm font-medium">Vista General</div>
+                <div className="text-xs text-muted-foreground">Vista Directora</div>
+              </button>
             </div>
           )}
         </Card>

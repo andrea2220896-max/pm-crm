@@ -11,7 +11,7 @@ import {
 import { SCORECARD_COLS } from "@/lib/constants";
 import { useSession } from "@/lib/session";
 import { ProfileLeft } from "@/components/ProfileLeft";
-import { EvaluationPanel } from "@/components/EvaluationPanel";
+import { EvaluationPanel, computeResultadosF1 } from "@/components/EvaluationPanel";
 import { Card } from "@/components/ui/card";
 
 export const Route = createFileRoute("/postulantes/$dni")({
@@ -68,18 +68,23 @@ function ProfilePage() {
 
   return (
     <main className="mx-auto max-w-[1600px] px-6 py-6">
-      <div className="mb-4 flex items-center justify-between">
-        <div>
-          <Link to="/dashboard" className="text-sm text-muted-foreground hover:text-primary">
-            ← Volver al panel
-          </Link>
-          {applicant.data && (
-            <h1 className="mt-1 text-2xl font-light">
+      <div className="mb-6">
+        <Link to="/dashboard" className="text-sm text-muted-foreground hover:text-primary">
+          ← Volver al panel
+        </Link>
+        {applicant.data && (
+          <div className="mt-2">
+            <h1 className="text-3xl font-light tracking-tight">
               {applicant.data.data["Nombres"]} {applicant.data.data["Apellidos"]}
             </h1>
-          )}
-        </div>
-        <div className="text-right text-xs text-muted-foreground">DNI: {dni}</div>
+            <div className="mt-1 text-sm text-muted-foreground">
+              DNI: <span className="font-mono">{applicant.data.data["DNI"] || dni}</span>
+            </div>
+            <div className="text-sm text-muted-foreground">
+              {applicant.data.data["¿Dónde estudiaste?"] || "—"}
+            </div>
+          </div>
+        )}
       </div>
 
       {applicant.isLoading && <p className="p-6">Cargando…</p>}
@@ -103,7 +108,15 @@ function ProfilePage() {
               mentoras={mentoras.data ?? []}
               staffList={(staff.data ?? []).filter((s) => s.activo).map((s) => s.nombreCorto)}
               totalScorecard={totalScorecard}
-              onSave={() => mutation.mutate(draft)}
+              onSave={() => {
+                const updates: Record<string, string | number> = { ...draft };
+                if ("¿Pasa a la fase 2 (Entrevistas)?" in updates) {
+                  updates["Resultados Fase 1"] = computeResultadosF1(
+                    String(updates["¿Pasa a la fase 2 (Entrevistas)?"]),
+                  );
+                }
+                mutation.mutate(updates);
+              }}
               saving={mutation.isPending}
               dirty={Object.keys(draft).length > 0}
             />
