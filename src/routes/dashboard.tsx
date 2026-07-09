@@ -38,12 +38,18 @@ function Dashboard() {
     );
   }, [applicants.data, session, isDirectora]);
 
+  const isPreselected = (d: Record<string, string>) => {
+    const r = (d["Resultados Fase 1"] ?? "").trim().toLowerCase();
+    const p = (d["¿Pasa a la fase 2 (Entrevistas)?"] ?? "").trim().toLowerCase();
+    return r === "preseleccionada" || p === "sí" || p === "si" || p === "preseleccionada";
+  };
+  const hasFase1Decision = (d: Record<string, string>) =>
+    !!(d["¿Pasa a la fase 2 (Entrevistas)?"] ?? "").trim();
+
   const metrics = useMemo(() => {
-    const pendientesF1 = mine.filter((a) => !a.data["¿Pasa a la fase 2 (Entrevistas)?"]).length;
+    const pendientesF1 = mine.filter((a) => !hasFase1Decision(a.data)).length;
     const pendientesF2 = mine.filter(
-      (a) =>
-        a.data["¿Pasa a la fase 2 (Entrevistas)?"] === "Preseleccionada" &&
-        !a.data["Resultados Fase 2"],
+      (a) => isPreselected(a.data) && !a.data["Resultados Fase 2"],
     ).length;
     const hechas = mine.filter((a) => !!a.data["Resultados Fase 2"]).length;
     return { total: mine.length, pendientesF1, pendientesF2, hechas };
@@ -51,13 +57,9 @@ function Dashboard() {
 
   const filtered = useMemo(() => {
     let list = mine;
-    if (filter === "fase1") list = list.filter((a) => !a.data["¿Pasa a la fase 2 (Entrevistas)?"]);
+    if (filter === "fase1") list = list.filter((a) => !hasFase1Decision(a.data));
     if (filter === "fase2")
-      list = list.filter(
-        (a) =>
-          a.data["¿Pasa a la fase 2 (Entrevistas)?"] === "Preseleccionada" &&
-          !a.data["Resultados Fase 2"],
-      );
+      list = list.filter((a) => isPreselected(a.data) && !a.data["Resultados Fase 2"]);
     if (filter === "hechas") list = list.filter((a) => !!a.data["Resultados Fase 2"]);
     if (q.trim()) {
       const s = q.toLowerCase();
