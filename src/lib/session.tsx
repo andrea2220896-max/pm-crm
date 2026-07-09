@@ -11,6 +11,7 @@ export type Session = {
 
 type Ctx = {
   session: Session | null;
+  hydrated: boolean;
   setSession: (s: Session | null) => void;
   isDirectora: boolean;
 };
