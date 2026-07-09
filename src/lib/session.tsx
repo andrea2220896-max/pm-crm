@@ -42,8 +42,10 @@ export function SessionProvider({ children }: { children: ReactNode }) {
 
   const value: Ctx = {
     session: hydrated ? session : null,
+    hydrated,
     setSession,
-    isDirectora: !!session && session.nombreCompleto.trim().toLowerCase() === DIRECTORA_NAME.toLowerCase(),
+    isDirectora:
+      hydrated && !!session && session.nombreCompleto.trim().toLowerCase() === DIRECTORA_NAME.toLowerCase(),
   };
 
   return <SessionCtx.Provider value={value}>{children}</SessionCtx.Provider>;
