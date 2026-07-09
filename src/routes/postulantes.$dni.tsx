@@ -108,7 +108,15 @@ function ProfilePage() {
               mentoras={mentoras.data ?? []}
               staffList={(staff.data ?? []).filter((s) => s.activo).map((s) => s.nombreCorto)}
               totalScorecard={totalScorecard}
-              onSave={() => mutation.mutate(draft)}
+              onSave={() => {
+                const updates: Record<string, string | number> = { ...draft };
+                if ("¿Pasa a la fase 2 (Entrevistas)?" in updates) {
+                  updates["Resultados Fase 1"] = computeResultadosF1(
+                    String(updates["¿Pasa a la fase 2 (Entrevistas)?"]),
+                  );
+                }
+                mutation.mutate(updates);
+              }}
               saving={mutation.isPending}
               dirty={Object.keys(draft).length > 0}
             />
