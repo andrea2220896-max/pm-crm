@@ -71,16 +71,20 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
-      { title: "WIF — Portal de Mentoría" },
+      { title: "CRM Interno" },
       {
         name: "description",
         content:
-          "Portal interno de Women in Finance para gestionar postulaciones y selección del Programa de Mentoría.",
+          "Internal CRM portal for Women In Finance (WIF) to manage their Mentorship Program.",
       },
-      { property: "og:title", content: "WIF — Portal de Mentoría" },
-      { property: "og:description", content: "Portal interno de gestión de postulantes — Women in Finance." },
+      { property: "og:title", content: "CRM Interno" },
+      { property: "og:description", content: "Internal CRM portal for Women In Finance (WIF) to manage their Mentorship Program." },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
+      { name: "twitter:title", content: "CRM Interno" },
+      { name: "twitter:description", content: "Internal CRM portal for Women In Finance (WIF) to manage their Mentorship Program." },
+      { property: "og:image", content: "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/eb719ebd-75c1-4a68-a138-d83e6727a286/id-preview-a55ae074--dfcdb57f-5fd8-499a-bbc7-2c7a66547943.lovable.app-1783578882420.png" },
+      { name: "twitter:image", content: "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/eb719ebd-75c1-4a68-a138-d83e6727a286/id-preview-a55ae074--dfcdb57f-5fd8-499a-bbc7-2c7a66547943.lovable.app-1783578882420.png" },
     ],
     links: [
       { rel: "stylesheet", href: appCss },
