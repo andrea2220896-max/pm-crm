@@ -41,9 +41,7 @@ function LoginPage() {
           )}
           {staff.data && (
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 md:grid-cols-3">
-              {staff.data
-                .filter((s) => s.activo)
-                .map((s) => (
+              {staff.data.map((s) => (
                   <button
                     key={s.nombreCompleto}
                     onClick={() => {
