@@ -461,7 +461,6 @@ function TablaResultadosF1({
               <SelectItem value="Sí">Sí</SelectItem>
               <SelectItem value="No">No</SelectItem>
               <SelectItem value="Tal vez">Tal vez</SelectItem>
-              <SelectItem value=" ">Sin marcar</SelectItem>
             </SelectContent>
           </Select>
         </div>
