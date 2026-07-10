@@ -40,7 +40,7 @@ function rowToRecord(row: string[]): Record<string, string> {
 // ---------- Read: all applicants ----------
 export const listApplicants = createServerFn({ method: "GET" }).handler(async () => {
   const { getValues } = await import("./sheets.server");
-  const values = await getValues(`${SHEET_APPLICANTS}!A2:AW`);
+  const values = await getValues(`${SHEET_APPLICANTS}!A2:AY`);
   const rows: ApplicantRow[] = values.map((row, i) => ({
     rowNumber: i + 2,
     data: rowToRecord(row),
