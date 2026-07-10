@@ -11,7 +11,7 @@ import {
 import { SCORECARD_COLS } from "@/lib/constants";
 import { useSession } from "@/lib/session";
 import { ProfileLeft } from "@/components/ProfileLeft";
-import { EvaluationPanel, computeResultadosF1 } from "@/components/EvaluationPanel";
+import { EvaluationPanel } from "@/components/EvaluationPanel";
 import { Card } from "@/components/ui/card";
 
 export const Route = createFileRoute("/postulantes/$dni")({
