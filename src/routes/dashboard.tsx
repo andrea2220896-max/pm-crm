@@ -3,6 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useEffect, useMemo, useState } from "react";
 import { listApplicants } from "@/lib/sheets.functions";
 import { useSession } from "@/lib/session";
+import { ESTADO, statusOf, type EstadoLabel } from "@/lib/constants";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -11,7 +12,10 @@ export const Route = createFileRoute("/dashboard")({
   component: Dashboard,
 });
 
-type Filter = "todas" | "fase1" | "fase2" | "hechas";
+// re-export for callers that used to import from here
+export { statusOf } from "@/lib/constants";
+
+type Filter = "todas" | "fase1" | "fase2" | "pendienteDir" | "hechas";
 
 function Dashboard() {
   const { session, isDirectora, hydrated } = useSession();
@@ -38,29 +42,30 @@ function Dashboard() {
     );
   }, [applicants.data, session, isDirectora]);
 
-  const isPreselected = (d: Record<string, string>) => {
-    const r = (d["Resultados Fase 1"] ?? "").trim().toLowerCase();
-    const p = (d["¿Pasa a la fase 2 (Entrevistas)?"] ?? "").trim().toLowerCase();
-    return r === "preseleccionada" || p === "sí" || p === "si" || p === "preseleccionada";
-  };
-  const hasFase1Decision = (d: Record<string, string>) =>
-    !!(d["¿Pasa a la fase 2 (Entrevistas)?"] ?? "").trim();
+  const withEstado = useMemo(
+    () => mine.map((a) => ({ ...a, estado: statusOf(a.data) })),
+    [mine],
+  );
+
+  const inSet = (label: EstadoLabel, set: EstadoLabel[]) => set.includes(label);
+  const HECHAS: EstadoLabel[] = [ESTADO.NO_SEL_F1, ESTADO.NO_SEL_F2, ESTADO.COMPLETADO];
+  const PENDIENTE_DIR: EstadoLabel[] = [ESTADO.PENDIENTE_DIR, ESTADO.PENDIENTE_DUPLA];
 
   const metrics = useMemo(() => {
-    const pendientesF1 = mine.filter((a) => !hasFase1Decision(a.data)).length;
-    const pendientesF2 = mine.filter(
-      (a) => isPreselected(a.data) && !a.data["Resultados Fase 2"],
-    ).length;
-    const hechas = mine.filter((a) => !!a.data["Resultados Fase 2"]).length;
-    return { total: mine.length, pendientesF1, pendientesF2, hechas };
-  }, [mine]);
+    const t = withEstado.length;
+    const fase1 = withEstado.filter((a) => a.estado.label === ESTADO.FASE1).length;
+    const fase2 = withEstado.filter((a) => a.estado.label === ESTADO.FASE2).length;
+    const pendDir = withEstado.filter((a) => inSet(a.estado.label, PENDIENTE_DIR)).length;
+    const hechas = withEstado.filter((a) => inSet(a.estado.label, HECHAS)).length;
+    return { total: t, fase1, fase2, pendDir, hechas };
+  }, [withEstado]);
 
   const filtered = useMemo(() => {
-    let list = mine;
-    if (filter === "fase1") list = list.filter((a) => !hasFase1Decision(a.data));
-    if (filter === "fase2")
-      list = list.filter((a) => isPreselected(a.data) && !a.data["Resultados Fase 2"]);
-    if (filter === "hechas") list = list.filter((a) => !!a.data["Resultados Fase 2"]);
+    let list = withEstado;
+    if (filter === "fase1") list = list.filter((a) => a.estado.label === ESTADO.FASE1);
+    if (filter === "fase2") list = list.filter((a) => a.estado.label === ESTADO.FASE2);
+    if (filter === "pendienteDir") list = list.filter((a) => inSet(a.estado.label, PENDIENTE_DIR));
+    if (filter === "hechas") list = list.filter((a) => inSet(a.estado.label, HECHAS));
     if (q.trim()) {
       const s = q.toLowerCase();
       list = list.filter((a) => {
@@ -73,7 +78,7 @@ function Dashboard() {
       });
     }
     return list;
-  }, [mine, filter, q]);
+  }, [withEstado, filter, q]);
 
   if (!session) return null;
 
@@ -81,7 +86,7 @@ function Dashboard() {
     <main className="mx-auto max-w-[1400px] px-6 py-8">
       <div className="mb-8 flex flex-wrap items-end justify-between gap-4">
         <div>
-          <p className="wif-section-title">Panel de control</p>
+          <p className="wif-section-title">Panel de Control</p>
           <h1 className="mt-1 text-3xl font-light">Bienvenida, {session.nombreCompleto.split(" ")[0]}</h1>
           <p className="mt-1 text-sm text-muted-foreground">
             {isDirectora ? "Vista de todas las postulantes" : "Vista de tus postulantes asignadas"}
@@ -97,10 +102,11 @@ function Dashboard() {
         )}
       </div>
 
-      <div className="mb-8 grid grid-cols-2 gap-3 sm:grid-cols-4">
-        <MetricCard label="Postulantes asignadas" value={metrics.total} onClick={() => setFilter("todas")} active={filter === "todas"} />
-        <MetricCard label="Pendientes Fase 1 (CV)" value={metrics.pendientesF1} onClick={() => setFilter("fase1")} active={filter === "fase1"} />
-        <MetricCard label="Pendientes Fase 2 (Entrevista)" value={metrics.pendientesF2} onClick={() => setFilter("fase2")} active={filter === "fase2"} />
+      <div className="mb-8 grid grid-cols-2 gap-3 sm:grid-cols-5">
+        <MetricCard label="Todas" value={metrics.total} onClick={() => setFilter("todas")} active={filter === "todas"} />
+        <MetricCard label="Fase 1 — Filtro CV" value={metrics.fase1} onClick={() => setFilter("fase1")} active={filter === "fase1"} />
+        <MetricCard label="Fase 2 — Entrevista" value={metrics.fase2} onClick={() => setFilter("fase2")} active={filter === "fase2"} />
+        <MetricCard label="Pendiente directora" value={metrics.pendDir} onClick={() => setFilter("pendienteDir")} active={filter === "pendienteDir"} />
         <MetricCard label="Revisiones completadas" value={metrics.hechas} onClick={() => setFilter("hechas")} active={filter === "hechas"} />
       </div>
 
@@ -136,43 +142,37 @@ function Dashboard() {
               </tr>
             </thead>
             <tbody>
-              {filtered.map((a) => {
-                const estado = statusOf(a.data);
-                return (
-                  <tr
-                    key={a.data["DNI"]}
-                    className="border-t border-border transition-colors hover:bg-[var(--teal-softer)]"
-                  >
-                    <td className="px-4 py-3">
-                      <Link
-                        to="/postulantes/$dni"
-                        params={{ dni: a.data["DNI"] }}
-                        className="hover:text-primary"
-                      >
-                        {a.data["Nombres"]} {a.data["Apellidos"]}
-                      </Link>
-                      {a.data["¿Candidata destacada?"]?.toLowerCase().includes("true") && (
-                        <Badge className="ml-2 bg-[var(--teal-soft)] text-primary" variant="outline">
-                          Destacada
-                        </Badge>
-                      )}
-                    </td>
-                    <td className="px-4 py-3 text-muted-foreground">{a.data["DNI"]}</td>
-                    <td className="px-4 py-3">{a.data["¿Dónde estudiaste?"] || "—"}</td>
-                    <td className="px-4 py-3">
-                      <span
-                        className="inline-block rounded-full px-2.5 py-0.5 text-xs"
-                        style={{
-                          background: estado.bg,
-                          color: estado.fg,
-                        }}
-                      >
-                        {estado.label}
-                      </span>
-                    </td>
-                  </tr>
-                );
-              })}
+              {filtered.map((a) => (
+                <tr
+                  key={a.data["DNI"]}
+                  className="border-t border-border transition-colors hover:bg-[var(--teal-softer)]"
+                >
+                  <td className="px-4 py-3">
+                    <Link
+                      to="/postulantes/$dni"
+                      params={{ dni: a.data["DNI"] }}
+                      className="hover:text-primary"
+                    >
+                      {a.data["Nombres"]} {a.data["Apellidos"]}
+                    </Link>
+                    {a.data["¿Candidata destacada?"]?.toLowerCase().includes("true") && (
+                      <Badge className="ml-2 bg-[var(--teal-soft)] text-primary" variant="outline">
+                        Destacada
+                      </Badge>
+                    )}
+                  </td>
+                  <td className="px-4 py-3 text-muted-foreground">{a.data["DNI"]}</td>
+                  <td className="px-4 py-3">{a.data["¿Dónde estudiaste?"] || "—"}</td>
+                  <td className="px-4 py-3">
+                    <span
+                      className="inline-block rounded-full px-2.5 py-0.5 text-xs"
+                      style={{ background: a.estado.bg, color: a.estado.fg }}
+                    >
+                      {a.estado.label}
+                    </span>
+                  </td>
+                </tr>
+              ))}
               {!applicants.isLoading && filtered.length === 0 && (
                 <tr>
                   <td colSpan={4} className="px-4 py-8 text-center text-sm text-muted-foreground">
@@ -212,20 +212,4 @@ function MetricCard({
       <div className="mt-2 text-3xl font-light text-primary">{value}</div>
     </button>
   );
-}
-
-export function statusOf(d: Record<string, string>) {
-  if (d["Resultados Fase 2"] === "Seleccionada")
-    return { label: "Seleccionada", bg: "var(--teal-soft)", fg: "var(--primary)" };
-  if (d["Resultados Fase 2"] === "No seleccionada")
-    return { label: "No seleccionada", bg: "oklch(0.96 0.01 30)", fg: "oklch(0.5 0.15 27)" };
-  const r = (d["Resultados Fase 1"] ?? "").trim().toLowerCase();
-  const p = (d["¿Pasa a la fase 2 (Entrevistas)?"] ?? "").trim().toLowerCase();
-  if (r === "preseleccionada" || p === "sí" || p === "si" || p === "preseleccionada")
-    return { label: "Fase 2 — Entrevista", bg: "var(--teal-softer)", fg: "var(--primary)" };
-  if (r === "en evaluación" || p === "tal vez")
-    return { label: "En evaluación", bg: "oklch(0.96 0.03 90)", fg: "oklch(0.45 0.1 80)" };
-  if (r === "no pasa" || p === "no" || p === "no seleccionada")
-    return { label: "No seleccionada (F1)", bg: "oklch(0.96 0.01 30)", fg: "oklch(0.5 0.15 27)" };
-  return { label: "Fase 1 — Filtro CV", bg: "oklch(0.97 0.005 200)", fg: "oklch(0.4 0.02 200)" };
 }
