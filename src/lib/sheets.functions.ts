@@ -57,7 +57,7 @@ export const getApplicantByDni = createServerFn({ method: "GET" })
   })
   .handler(async ({ data }) => {
     const { getValues } = await import("./sheets.server");
-    const values = await getValues(`${SHEET_APPLICANTS}!A2:AW`);
+    const values = await getValues(`${SHEET_APPLICANTS}!A2:AY`);
     const dniCol = colIndexOf("DNI");
     const idx = values.findIndex((row) => (row[dniCol] ?? "").trim() === data.dni);
     if (idx === -1) return null;
