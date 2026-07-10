@@ -13,7 +13,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { SCORECARD_COLS } from "@/lib/constants";
-import { ChevronDown, ChevronRight, Save } from "lucide-react";
+import { ChevronDown, ChevronRight, Lock, Save } from "lucide-react";
 
 type Props = {
   data: Record<string, string>;
@@ -28,14 +28,7 @@ type Props = {
   dirty: boolean;
 };
 
-// Fase 1 dropdown → Resultados Fase 1
-export function computeResultadosF1(pasa: string): string {
-  const v = (pasa || "").trim().toLowerCase();
-  if (v === "sí" || v === "si" || v === "preseleccionada") return "Preseleccionada";
-  if (v === "no" || v === "no seleccionada") return "No pasa";
-  if (v === "tal vez") return "En evaluación";
-  return "Pendiente de revisión";
-}
+const DASH = "—";
 
 export function EvaluationPanel({
   data,
@@ -50,15 +43,17 @@ export function EvaluationPanel({
   dirty,
 }: Props) {
   const [f1Open, setF1Open] = useState(true);
+  const [f2Open, setF2Open] = useState(true);
 
   const set = (k: string, v: string | number) => setDraft({ ...draft, [k]: v });
   const val = (k: string) => (k in draft ? String(draft[k]) : data[k] ?? "");
   const isTruthy = (s: string) =>
     ["true", "sí", "si", "1", "yes"].includes(s.trim().toLowerCase());
 
-  const pasa = val("¿Pasa a la fase 2 (Entrevistas)?");
-  const resultadosF1 = computeResultadosF1(pasa);
-  const showFase2 = resultadosF1 === "Preseleccionada";
+  const resultadosF1 = val("Resultados Fase 1");
+  const isPreseleccionada =
+    resultadosF1.trim().toLowerCase() === "pre seleccionada" ||
+    resultadosF1.trim().toLowerCase() === "preseleccionada";
   const resultadosF2 = val("Resultados Fase 2");
   const showMentora = resultadosF2 === "Seleccionada";
 
@@ -68,20 +63,15 @@ export function EvaluationPanel({
         <h2 className="text-lg font-light tracking-tight text-primary">Evaluación</h2>
       </div>
 
-      <div className="flex-1 overflow-y-auto p-5">
-        {/* FASE 1 — colapsable */}
-        <section className="mb-6">
-          <button
-            type="button"
-            onClick={() => setF1Open((v) => !v)}
-            className="mb-3 flex w-full items-center justify-between rounded-md bg-primary px-4 py-2.5 text-left text-sm font-medium text-primary-foreground hover:opacity-90"
-          >
-            <span>Evaluación Fase 1 (Filtro de CV)</span>
-            {f1Open ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
-          </button>
+      <div className="flex-1 space-y-6 overflow-y-auto p-5">
+        {/* ============ FASE 1 ============ */}
+        <section>
+          <AccordionHeader open={f1Open} onClick={() => setF1Open((v) => !v)}>
+            Evaluación Fase 1 (Filtro de CV)
+          </AccordionHeader>
 
           {f1Open && (
-            <div className="space-y-4">
+            <div className="mt-3 space-y-4">
               {isDirectora && (
                 <Field label="Encargada de la revisión">
                   <Select value={val("Encargada de la revisión:")} onValueChange={(v) => set("Encargada de la revisión:", v)}>
@@ -98,8 +88,8 @@ export function EvaluationPanel({
               <Field label="Comentarios">
                 <Textarea
                   rows={3}
-                  value={val("Comentarios (Opcional)")}
-                  onChange={(e) => set("Comentarios (Opcional)", e.target.value)}
+                  value={val("Comentarios generales del perfil")}
+                  onChange={(e) => set("Comentarios generales del perfil", e.target.value)}
                 />
               </Field>
 
@@ -110,10 +100,10 @@ export function EvaluationPanel({
                 />
               </Field>
 
-              <Field label="¿Pasa a la fase 2 (Entrevistas)?">
+              <Field label="¿Aprueba Fase 1?">
                 <Select
-                  value={mapStoredToOption(pasa)}
-                  onValueChange={(v) => set("¿Pasa a la fase 2 (Entrevistas)?", v)}
+                  value={val("¿Aprueba Fase 1?")}
+                  onValueChange={(v) => set("¿Aprueba Fase 1?", v)}
                 >
                   <SelectTrigger><SelectValue placeholder="Seleccionar…" /></SelectTrigger>
                   <SelectContent>
@@ -125,83 +115,137 @@ export function EvaluationPanel({
               </Field>
 
               {isDirectora && (
-                <Field label="Comentarios Directora">
-                  <Textarea rows={2} value={val("Check Nicole")} onChange={(e) => set("Check Nicole", e.target.value)} />
+                <Field label="Comentarios Finales Directora">
+                  <Textarea
+                    rows={2}
+                    value={val("Comentarios Nicole")}
+                    onChange={(e) => set("Comentarios Nicole", e.target.value)}
+                  />
                 </Field>
               )}
 
-              <div className="rounded-md border border-border bg-muted p-3">
-                <Label className="mb-1.5 block text-xs uppercase tracking-wide text-muted-foreground">
-                  Resultados Fase 1
-                </Label>
-                <Input readOnly disabled value={resultadosF1} className="bg-background font-medium text-primary" />
-              </div>
+              <Field label="Resultados Fase 1">
+                {isDirectora ? (
+                  <Select
+                    value={resultadosF1 || undefined}
+                    onValueChange={(v) => set("Resultados Fase 1", v)}
+                  >
+                    <SelectTrigger><SelectValue placeholder={DASH} /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="Pre seleccionada">Pre seleccionada</SelectItem>
+                      <SelectItem value="No Seleccionada">No Seleccionada</SelectItem>
+                    </SelectContent>
+                  </Select>
+                ) : (
+                  <div className="flex items-center gap-2 rounded-md border border-border bg-muted px-3 py-2 text-sm">
+                    <Lock className="h-3.5 w-3.5 text-muted-foreground" />
+                    <span className={resultadosF1 ? "font-medium text-primary" : "text-muted-foreground"}>
+                      {resultadosF1 || DASH}
+                    </span>
+                    <span className="ml-auto text-xs text-muted-foreground">Solo Directora</span>
+                  </div>
+                )}
+              </Field>
             </div>
           )}
         </section>
 
-        {/* FASE 2 — condicional */}
-        {showFase2 && (
-          <section className="mb-6">
-            <p className="wif-section-title mb-3 border-b border-border pb-2">
-              Sección B · Evaluación Fase 2 (Scorecard de Entrevista)
-            </p>
-            <div className="space-y-4">
-              <Field label="Status Entrevista">
-                <Select value={val("Status Entrevista")} onValueChange={(v) => set("Status Entrevista", v)}>
-                  <SelectTrigger><SelectValue placeholder="Seleccionar…" /></SelectTrigger>
-                  <SelectContent>
-                    {["Por agendar", "Agendada", "Entrevistada", "Sin respuesta"].map((o) => (
-                      <SelectItem key={o} value={o}>{o}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </Field>
+        {/* ============ FASE 2 — solo si Pre seleccionada ============ */}
+        {isPreseleccionada && (
+          <section>
+            <AccordionHeader open={f2Open} onClick={() => setF2Open((v) => !v)}>
+              Evaluación Fase 2 (Scorecard de Entrevista)
+            </AccordionHeader>
 
-              {SCORECARD_COLS.map((c) => (
-                <RatingField
-                  key={c}
-                  label={c.replace("Scorecard de entrevista: ", "").replace(/\n/g, " ").trim()}
-                  value={Number(val(c) || 0)}
-                  onChange={(n) => set(c, n)}
-                />
-              ))}
-
-              <Field label="Total Scorecard de entrevista">
-                <Input readOnly value={totalScorecard} className="bg-[var(--teal-softer)] font-medium text-primary" />
-              </Field>
-
-              <Field label="Comentar feedback de Entrevista">
-                <Textarea rows={2} value={val("Comentar feedback de Entrevista")} onChange={(e) => set("Comentar feedback de Entrevista", e.target.value)} />
-              </Field>
-
-              <Field label="Comentarios referencias laborales">
-                <Textarea rows={2} value={val("Referencias")} onChange={(e) => set("Referencias", e.target.value)} />
-              </Field>
-
-              <Field label="Resultados Fase 2">
-                <Select value={val("Resultados Fase 2")} onValueChange={(v) => set("Resultados Fase 2", v)}>
-                  <SelectTrigger><SelectValue placeholder="Seleccionar…" /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="Seleccionada">Seleccionada</SelectItem>
-                    <SelectItem value="No seleccionada">No seleccionada</SelectItem>
-                  </SelectContent>
-                </Select>
-              </Field>
-
-              {showMentora && (
-                <Field label="Mentora asignada">
-                  <Select value={val("Mentora asignada")} onValueChange={(v) => set("Mentora asignada", v)}>
-                    <SelectTrigger><SelectValue placeholder="Seleccionar mentora…" /></SelectTrigger>
+            {f2Open && (
+              <div className="mt-3 space-y-4">
+                <Field label="Status Entrevista">
+                  <Select value={val("Status Entrevista")} onValueChange={(v) => set("Status Entrevista", v)}>
+                    <SelectTrigger><SelectValue placeholder="Seleccionar…" /></SelectTrigger>
                     <SelectContent>
-                      {mentoras.map((m) => (
-                        <SelectItem key={m.nombre} value={m.nombre}>{m.nombre}</SelectItem>
+                      {["Por agendar", "Agendada", "Entrevistada", "Sin respuesta"].map((o) => (
+                        <SelectItem key={o} value={o}>{o}</SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
                 </Field>
-              )}
-            </div>
+
+                {SCORECARD_COLS.map((c) => (
+                  <RatingField
+                    key={c}
+                    label={c.replace("Scorecard de entrevista: ", "").trim()}
+                    value={Number(val(c) || 0)}
+                    onChange={(n) => set(c, n)}
+                  />
+                ))}
+
+                <Field label="Total Scorecard de entrevista">
+                  <Input readOnly value={totalScorecard} className="bg-[var(--teal-softer)] font-medium text-primary" />
+                </Field>
+
+                <Field label="Feedback de Entrevista">
+                  <Textarea rows={2} value={val("Feedback de Entrevista")} onChange={(e) => set("Feedback de Entrevista", e.target.value)} />
+                </Field>
+
+                <Field label="Comentarios referencias laborales">
+                  <Textarea rows={2} value={val("Feedback referencias")} onChange={(e) => set("Feedback referencias", e.target.value)} />
+                </Field>
+
+                <Field label="¿Aprueba Fase 2?">
+                  <Select value={val("¿Aprueba Fase 2?")} onValueChange={(v) => set("¿Aprueba Fase 2?", v)}>
+                    <SelectTrigger><SelectValue placeholder="Seleccionar…" /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="Sí">Sí</SelectItem>
+                      <SelectItem value="No">No</SelectItem>
+                      <SelectItem value="Tal vez">Tal vez</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </Field>
+
+                <Field label="Invitada prox año" inline>
+                  <Switch
+                    checked={isTruthy(val("Invitada prox año"))}
+                    onCheckedChange={(v) => set("Invitada prox año", v ? "TRUE" : "FALSE")}
+                  />
+                </Field>
+
+                <Field label="Resultados Fase 2">
+                  {isDirectora ? (
+                    <Select
+                      value={resultadosF2 || undefined}
+                      onValueChange={(v) => set("Resultados Fase 2", v)}
+                    >
+                      <SelectTrigger><SelectValue placeholder={DASH} /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="Seleccionada">Seleccionada</SelectItem>
+                        <SelectItem value="No seleccionada">No seleccionada</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  ) : (
+                    <div className="flex items-center gap-2 rounded-md border border-border bg-muted px-3 py-2 text-sm">
+                      <Lock className="h-3.5 w-3.5 text-muted-foreground" />
+                      <span className={resultadosF2 ? "font-medium text-primary" : "text-muted-foreground"}>
+                        {resultadosF2 || DASH}
+                      </span>
+                      <span className="ml-auto text-xs text-muted-foreground">Solo Directora</span>
+                    </div>
+                  )}
+                </Field>
+
+                {showMentora && (
+                  <Field label="Mentora asignada">
+                    <Select value={val("Mentora asignada")} onValueChange={(v) => set("Mentora asignada", v)}>
+                      <SelectTrigger><SelectValue placeholder="Seleccionar mentora…" /></SelectTrigger>
+                      <SelectContent>
+                        {mentoras.map((m) => (
+                          <SelectItem key={m.nombre} value={m.nombre}>{m.nombre}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </Field>
+                )}
+              </div>
+            )}
           </section>
         )}
       </div>
@@ -220,12 +264,25 @@ export function EvaluationPanel({
   );
 }
 
-function mapStoredToOption(stored: string): string {
-  const v = (stored || "").trim().toLowerCase();
-  if (v === "preseleccionada" || v === "sí" || v === "si") return "Sí";
-  if (v === "no seleccionada" || v === "no") return "No";
-  if (v === "tal vez") return "Tal vez";
-  return "";
+function AccordionHeader({
+  open,
+  onClick,
+  children,
+}: {
+  open: boolean;
+  onClick: () => void;
+  children: React.ReactNode;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="flex w-full items-center justify-between rounded-md bg-primary px-4 py-2.5 text-left text-sm font-medium text-primary-foreground hover:opacity-90"
+    >
+      <span>{children}</span>
+      {open ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+    </button>
+  );
 }
 
 function Field({ label, children, inline }: { label: string; children: React.ReactNode; inline?: boolean }) {

@@ -110,7 +110,7 @@ export function ProfileLeft({ data }: { data: Record<string, string> }) {
           <div className="md:col-span-2">
             <Field label="Principales responsabilidades de tu puesto de trabajo" value={data["Principales responsabilidades de tu puesto de trabajo:"]} />
           </div>
-          <Field label="¿Tienes personas a tu cargo?" value={data["¿Tienes personas a tu cargo? "]} />
+          <Field label="¿Tienes personas a tu cargo?" value={data["¿Tienes personas a tu cargo?"]} />
         </div>
       </Card>
 

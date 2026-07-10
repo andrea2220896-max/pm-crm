@@ -40,7 +40,7 @@ function rowToRecord(row: string[]): Record<string, string> {
 // ---------- Read: all applicants ----------
 export const listApplicants = createServerFn({ method: "GET" }).handler(async () => {
   const { getValues } = await import("./sheets.server");
-  const values = await getValues(`${SHEET_APPLICANTS}!A2:AW`);
+  const values = await getValues(`${SHEET_APPLICANTS}!A2:AY`);
   const rows: ApplicantRow[] = values.map((row, i) => ({
     rowNumber: i + 2,
     data: rowToRecord(row),
@@ -57,7 +57,7 @@ export const getApplicantByDni = createServerFn({ method: "GET" })
   })
   .handler(async ({ data }) => {
     const { getValues } = await import("./sheets.server");
-    const values = await getValues(`${SHEET_APPLICANTS}!A2:AW`);
+    const values = await getValues(`${SHEET_APPLICANTS}!A2:AY`);
     const dniCol = colIndexOf("DNI");
     const idx = values.findIndex((row) => (row[dniCol] ?? "").trim() === data.dni);
     if (idx === -1) return null;
@@ -82,7 +82,7 @@ export const updateApplicantByDni = createServerFn({ method: "POST" })
   })
   .handler(async ({ data }) => {
     const { getValues, batchUpdateValues } = await import("./sheets.server");
-    const values = await getValues(`${SHEET_APPLICANTS}!A2:AW`);
+    const values = await getValues(`${SHEET_APPLICANTS}!A2:AY`);
     const dniCol = colIndexOf("DNI");
     const idx = values.findIndex((row) => (row[dniCol] ?? "").trim() === data.dni);
     if (idx === -1) throw new Error(`No se encontró postulante con DNI ${data.dni}`);
