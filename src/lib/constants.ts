@@ -4,7 +4,7 @@ export const SHEET_APPLICANTS = "Postulaciones_Prueba";
 export const SHEET_MENTORAS = "Base_Mentoras";
 export const SHEET_STAFF = "Config_Staff";
 
-// Exact column headers as they appear in the sheet (row 1)
+// Exact column headers as they appear in the sheet (row 1) — source of truth
 export const COLS = [
   "Marca temporal",
   "Dirección de correo electrónico",
@@ -20,7 +20,7 @@ export const COLS = [
   "Lugar de Trabajo Actual:",
   "Puesto de Trabajo:",
   "Principales responsabilidades de tu puesto de trabajo:",
-  "¿Tienes personas a tu cargo? ",
+  "¿Tienes personas a tu cargo?",
   "Años de experiencia profesional en la industria financiera:",
   "¿Cómo te describirías en 4 lineas?:",
   "Lista tus hobbies / intereses fuera del trabajo:",
@@ -35,22 +35,24 @@ export const COLS = [
   "OPCIONAL: Aquí puedes dejar la referencia de alguna ex mentee o mentora de programas anteriores (nombre y celular) que podamos contactar para preguntar por ti",
   "LinkedIn",
   "Encargada de la revisión:",
-  "¿Pasa a la fase 2 (Entrevistas)?",
+  "¿Aprueba Fase 1?",
   "¿Candidata destacada?",
-  "Comentarios (Opcional)",
-  "Check Nicole",
+  "Comentarios generales del perfil",
+  "Comentarios Nicole",
   "Resultados Fase 1",
   "Status Entrevista",
-  "Comentar feedback de Entrevista",
+  "Feedback de Entrevista",
   "Scorecard de entrevista: Motivación genuina",
   "Scorecard de entrevista: Disponibilidad y compromiso",
   "Scorecard de entrevista: Necesidad real de mentoría",
   "Scorecard de entrevista: Madurez profesional",
   "Scorecard de entrevista: Apertura al feedback y reflexión",
   "Scorecard de entrevista: Coherencia general",
-  "Scorecard de entrevista: Encaje con Women in\n Finance y construcción de\n comunidad",
+  "Scorecard de entrevista: Encaje con Women in Finance y construcción de comunidad",
   "Total Scorecard de entrevista",
-  "Referencias",
+  "Feedback referencias",
+  "¿Aprueba Fase 2?",
+  "Invitada prox año",
   "Resultados Fase 2",
   "Nombre Mentee",
   "Mentora asignada",
@@ -66,12 +68,47 @@ export const SCORECARD_COLS: ColName[] = [
   "Scorecard de entrevista: Madurez profesional",
   "Scorecard de entrevista: Apertura al feedback y reflexión",
   "Scorecard de entrevista: Coherencia general",
-  "Scorecard de entrevista: Encaje con Women in\n Finance y construcción de\n comunidad",
+  "Scorecard de entrevista: Encaje con Women in Finance y construcción de comunidad",
 ];
 
 export const DIRECTORA_NAME = "Nicole Vegas";
 
-// University → Region lookup (spec §8)
+// Estado derivado — labels canónicos usados por statusOf + filtros
+export const ESTADO = {
+  COMPLETADO: "Completado",
+  PENDIENTE_DUPLA: "Pendiente dupla",
+  NO_SEL_F2: "No seleccionada (F2)",
+  PENDIENTE_DIR: "Pendiente Directora",
+  FASE2: "Fase 2 - Entrevista",
+  NO_SEL_F1: "No seleccionada (F1)",
+  FASE1: "Fase 1 — Filtro CV",
+} as const;
+export type EstadoLabel = (typeof ESTADO)[keyof typeof ESTADO];
+
+export function statusOf(d: Record<string, string>): {
+  label: EstadoLabel;
+  bg: string;
+  fg: string;
+} {
+  const mentora = (d["Mentora asignada"] ?? "").trim();
+  const r2 = (d["Resultados Fase 2"] ?? "").trim().toLowerCase();
+  const ap2 = (d["¿Aprueba Fase 2?"] ?? "").trim();
+  const r1 = (d["Resultados Fase 1"] ?? "").trim().toLowerCase();
+  const ap1 = (d["¿Aprueba Fase 1?"] ?? "").trim();
+
+  if (mentora) return { label: ESTADO.COMPLETADO, bg: "var(--teal-soft)", fg: "var(--primary)" };
+  if (r2 === "seleccionada") return { label: ESTADO.PENDIENTE_DUPLA, bg: "oklch(0.95 0.05 90)", fg: "oklch(0.4 0.15 80)" };
+  if (r2 === "no seleccionada") return { label: ESTADO.NO_SEL_F2, bg: "oklch(0.96 0.01 30)", fg: "oklch(0.5 0.15 27)" };
+  if (ap2) return { label: ESTADO.PENDIENTE_DIR, bg: "oklch(0.95 0.03 300)", fg: "oklch(0.4 0.15 300)" };
+  if (r1 === "pre seleccionada" || r1 === "preseleccionada")
+    return { label: ESTADO.FASE2, bg: "var(--teal-softer)", fg: "var(--primary)" };
+  if (r1 === "no seleccionada" || r1 === "no pasa")
+    return { label: ESTADO.NO_SEL_F1, bg: "oklch(0.96 0.01 30)", fg: "oklch(0.5 0.15 27)" };
+  if (ap1) return { label: ESTADO.PENDIENTE_DIR, bg: "oklch(0.95 0.03 300)", fg: "oklch(0.4 0.15 300)" };
+  return { label: ESTADO.FASE1, bg: "oklch(0.97 0.005 200)", fg: "oklch(0.4 0.02 200)" };
+}
+
+// University → Region lookup
 export const UNIVERSITY_REGION: Record<string, "Lima" | "Provincias"> = {
   "Universidad del Pacífico - UP": "Lima",
   "Universidad Nacional Mayor de San Marcos - UNMSM": "Lima",
@@ -119,7 +156,6 @@ export function regionForUniversity(u: string | undefined | null): "Lima" | "Pro
   return UNIVERSITY_REGION[u.trim()] ?? "No especificado";
 }
 
-// A=0, Z=25, AA=26, etc.
 export function colLetter(index0: number): string {
   let n = index0;
   let s = "";
