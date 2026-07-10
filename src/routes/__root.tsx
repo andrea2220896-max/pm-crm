@@ -132,7 +132,7 @@ function TopBar() {
             activeProps={{ className: "text-primary" }}
             className="rounded-md px-3 py-1.5 hover:bg-accent"
           >
-            Panel
+            Panel de Control
           </Link>
           {isDirectora && (
             <Link
